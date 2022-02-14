@@ -1,0 +1,5 @@
+lw rt,inm(rs)
+sw rt,inm(rs)
+add rd,rs,rt
+sub rd,rs,rt
+beqz rs,inm
