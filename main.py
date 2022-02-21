@@ -23,8 +23,27 @@ def main(instrucciones):
     print(instrucciones)
     MEM_I = instrucciones
 
+    # Sabes el numero de NOPS
+    if len(MEM_I)>1:
+        nciclos = 0
+        for i in range(len(MEM_I)-1):
+            op1 = MEM_I[i][0]
+            regs1 = MEM_I[i][1]
+
+            op2 = MEM_I[i+1][0]
+            regs2 = MEM_I[i+1][1]
+
+            # RAW
+
+            if (): # Segunda instruccion: add o sum
+            if(regs1[0] == regs2[1] || regs1[0] == regs2[2])
+
+
+
+
+
 def etapa_if(MEM_I, RS_IF_ID):
-    pass
+    instruccion = MEM_I[]
 
 def etapa_id(RS_IF_ID, RS_ID_EX, REG):
     pass
