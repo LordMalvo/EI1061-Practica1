@@ -1,13 +1,21 @@
 import sys
+from typing import *
 
 # Definicion de vectores
 MEM_D = []  # Memoria de datos
 REG = dict()    # Banco de registros
 MEM_I = []  # Memorida de isntrucciones
-RS_IF_ID = []   # Registro de segmentacion etapa de IF a ID
-RS_ID_EX = []   # Registro de segmentacion etapa de ID a EX
-RS_EX_MEM = []  # Registro de segmentacion etapa de EX a MEM
-RS_MEM_WD = []  # Registro de segmentacion etapa de MEM a WD
+
+# INSTRUCCION
+class Instruccion:
+
+    def __init__(self, op, rd, rs, rt, inm, num):
+        self.op = op
+        self.rd = rd
+        self.rs = rs
+        self.rt = rt
+        self.inm = inm
+        self.num = num
 
 # REGISTROS DE SEGMENTACION
 class RS_IF_ID:
@@ -61,22 +69,20 @@ def read_data(f):
         instrucciones[i][1] = instrucciones[i][1].split(',')
     return instrucciones
 
-# Control de errores
-def checkErrorAluAlu(RS_ID_EX: RS_ID_EX, RS_EX_MEM: RS_EX_MEM):
-    if (RS_ID_EX.rs == RS_EX_MEM.rd) and (RS_EX_MEM.tipo == "ALU") and (RS_ID_EX.tipo == "ALU"):
-        RS_ID_EX.value1 = RS_EX_MEM.res
-    if (RS_ID_EX.rt == RS_EX_MEM.rd) and (RS_EX_MEM.tipo == "ALU") and (RS_ID_EX.tipo == "ALU"):
-        RS_ID_EX.value2 = RS_EX_MEM.res
+def etapa(etapa, instruccion):
+    if instruccion == "NOP":
+        return instruccion
 
-def checkErrorLoadAlu(RS_ID_EX: RS_ID_EX, RS_MEM_WB: RS_MEM_WD):
-    if (RS_ID_EX.rs == RS_MEM_WB.rt) and (RS_ID_EX.tipo == "ALU") and (RS_MEM_WB.tipo == "LOAD"):
-        RS_ID_EX.value1 = RS_MEM_WB.res
-    if (RS_ID_EX.rt == RS_MEM_WB.rt) and (RS_ID_EX.tipo == "ALU") and (RS_MEM_WB.tipo == "LOAD"):
-        RS_ID_EX.value2 = RS_MEM_WB.res
-
-def checkErrorAluStore(RS_EX_MEM: RS_EX_MEM, RS_MEM_WB: RS_MEM_WD):
-    if (RS_EX_MEM.rt == RS_MEM_WB.rd) and (RS_EX_MEM.tipo == "STORE") and (RS_MEM_WB.tipo == "ALU"):
-        RS_EX_MEM.value2 = RS_MEM_WB.res
+    if etapa == "IF":
+        pass
+    if etapa == "ID":
+        pass
+    if etapa == "EX":
+        pass
+    if etapa == "MEM":
+        pass
+    if etapa == "WB":
+        pass
 
 def procesaInstrucciones(instrucciones):
     if len(instrucciones) >= 1:
@@ -103,15 +109,37 @@ def procesaInstrucciones(instrucciones):
                     if (op2 == "add" or op2 == "sub") and (regs1[0] == regs2[0]):  # Riesgo de datos entre LOAD y ALU
                         dependencia = True
                 if dependencia:
-                    instrucciones.insert(i + 1, "NOP")
-                    instrucciones.insert(i + 1, "NOP")
+                    instrucciones.insert(i + 1, ["NOP"])
+                    instrucciones.insert(i + 1, ["NOP"])
                     i += 2
                     nciclos += 2
                 i += 1
         return instrucciones, nciclos
-
     else:
         print("No hay instrucciones")
+
+def cargaInstrucciones(instrucciones):
+    num = 1
+    lista = ()
+    for inst in instrucciones:
+        op = inst[0]
+        if op == "NOP":
+            lista.append(Instruccion(op,"","","",0,num))
+        elif op == "add" or op == "sub":
+            rd = inst[1][0]
+            rs = inst[1][1]
+            rt = inst[1][2]
+            instruccion = Instruccion(op, rd, rs, rt, 0, num)
+        else:
+            rt = inst[1][0]
+            rs1 = inst[1][1].split("(")
+            inm = rs1[0]
+            rs2 = rs1[1].split(")")
+            rs = rs2[0]
+            instruccion = Instruccion(op, "", rs, rt, inm, num)
+        num+=1
+    return lista, num
+
 
 
 def etapa_if(MEM_I, RS_IF_ID):
@@ -133,15 +161,23 @@ if __name__ == '__main__':
 
     # Cargamos las intrucciones en memoria
     instrucciones, nciclos = read_data(sys.stdin)
-    MEM_I = procesaInstrucciones(instrucciones)
+    lista_inst = procesaInstrucciones(instrucciones)
+    MEM_I, numInst = cargaInstrucciones(lista_inst)
 
     # Inicializamos registros
     REG = {'r0': 0, 'r1': 1, 'r2': 2, 'r3': 3, 'r4': 4, 'r5': 5, 'r6': 6,
            'r7': 7, 'r8': 8, 'r9': 9, 'r10': 10, 'r11': 11, 'r12': 12,
            'r13': 13, 'r14': 14, 'r15': 15}
 
+    # Inicializacion de los registros de segmentación
+    RS_IF_ID = RS_IF_ID("", "", "", "", "", 0)
+    RS_ID_EX = RS_ID_EX("", "", "", "", "", "", 0, 0)
+    RS_EX_MEM = RS_EX_MEM("", "", "", "", 0)
+    RS_MEM_WB = RS_MEM_WB("", "", "", "")
+
     # Contador
     PC = 0
+    continua = True
 
     # Comienza la simulacion
     print("Listado de instrucciones final:")
@@ -150,6 +186,24 @@ if __name__ == '__main__':
     print("Numero total de ciclos: {}".format(nciclos))
     print(" ")
 
+    while continua:  # Continua mientras hayan datos en los registros de segmentacion
 
+        # COMPROBAMOS SI HAY ALGUN RIESGO
+
+        # ALU ALU
+        if (RS_ID_EX.rs == RS_EX_MEM.rd) and (RS_EX_MEM.tipo == "ALU") and (RS_ID_EX.tipo == "ALU"):
+            RS_ID_EX.value1 = RS_EX_MEM.res
+        if (RS_ID_EX.rt == RS_EX_MEM.rd) and (RS_EX_MEM.tipo == "ALU") and (RS_ID_EX.tipo == "ALU"):
+            RS_ID_EX.value2 = RS_EX_MEM.res
+
+        # LOAD ALU
+        if (RS_ID_EX.rs == RS_MEM_WB.rt) and (RS_ID_EX.tipo == "ALU") and (RS_MEM_WB.tipo == "LOAD"):
+            RS_ID_EX.value1 = RS_MEM_WB.res
+        if (RS_ID_EX.rt == RS_MEM_WB.rt) and (RS_ID_EX.tipo == "ALU") and (RS_MEM_WB.tipo == "LOAD"):
+            RS_ID_EX.value2 = RS_MEM_WB.res
+
+        # ALU STORE
+        if (RS_EX_MEM.rt == RS_MEM_WB.rd) and (RS_EX_MEM.tipo == "STORE") and (RS_MEM_WB.tipo == "ALU"):
+            RS_EX_MEM.value2 = RS_MEM_WB.res
 
 
