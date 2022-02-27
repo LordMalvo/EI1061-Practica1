@@ -122,7 +122,7 @@ def read_data():
     instrucciones = []
     for i in range(len(lines)):
         if str(lines[i]) == "NOP\n":
-            instrucciones.append(["NOP"])
+            instrucciones.append("NOP")
         else:
             instrucciones.append(lines[i].split())
             instrucciones[i][1] = instrucciones[i][1].split(',')
@@ -136,7 +136,7 @@ def procesaInstrucciones(instrucciones):
         if len(instrucciones) > 1:
             i = 0
             while i < len(instrucciones)-1:
-                if instrucciones[i] != "NOP":
+                if instrucciones[i] != "NOP" or instrucciones[i+1] != "NOP":
                     dependencia = False
                     nciclos += 1
                     op1 = instrucciones[i][0]
@@ -154,8 +154,8 @@ def procesaInstrucciones(instrucciones):
                         if (op2 == "add" or op2 == "sub") and (regs1[0] == regs2[0]):  # Riesgo de datos entre LOAD y ALU
                             dependencia = True
                     if dependencia:
-                        instrucciones.insert(i + 1, ["NOP"])
-                        instrucciones.insert(i + 1, ["NOP"])
+                        instrucciones.insert(i + 1, "NOP")
+                        instrucciones.insert(i + 1, "NOP")
                         i += 2
                         nciclos += 2
                 else:
@@ -171,8 +171,8 @@ def cargaInstrucciones(instrucciones):
     lista = []
     for inst in instrucciones:
         op = inst[0]
-        if op == "NOP":
-            lista.append(Instruccion("",op,"","","",0,num))
+        if inst == "NOP":
+            lista.append(Instruccion("","NOP","","","",0,num))
         elif op == "add" or op == "sub":
             rd = inst[1][0]
             rs = inst[1][1]
