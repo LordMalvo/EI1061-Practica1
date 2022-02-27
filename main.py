@@ -145,19 +145,13 @@ def procesaInstrucciones(instrucciones):
                     op2 = instrucciones[i+1][0]
                     regs2 = instrucciones[i+1][1]
 
-                    if op1 == "add" or op1 == "sub":
-                        if (op2 == "add" or op2 == "sub") and (regs1[0] == regs2[1] or regs1[0] == regs2[2]):  # Riesgo de datos entre ALU y ALU
-                            dependencia = True
-                        elif (op2 == "sw") and (regs1[0] == regs2[0]):  # Riesgo de datos entre ALU y STORE
-                            dependencia = True
-                    elif op1 == "lw":
-                        if (op2 == "add" or op2 == "sub") and (regs1[0] == regs2[0]):  # Riesgo de datos entre LOAD y ALU
+                    if op1 == "lw":
+                        if (op2 == "add" or op2 == "sub") and (regs1[0] == regs2[1] or regs1[0] == regs2[2]):  # Riesgo de datos entre LOAD y ALU
                             dependencia = True
                     if dependencia:
                         instrucciones.insert(i + 1, "NOP")
-                        instrucciones.insert(i + 1, "NOP")
-                        i += 2
-                        nciclos += 2
+                        i += 1
+                        nciclos += 1
                 else:
                     nciclos += 1
                 i += 1
@@ -172,12 +166,12 @@ def cargaInstrucciones(instrucciones):
     for inst in instrucciones:
         op = inst[0]
         if inst == "NOP":
-            lista.append(Instruccion("","NOP","","","",0,num))
+            lista.append(Instruccion("","NOP","","","",0,0))
         elif op == "add" or op == "sub":
             rd = inst[1][0]
             rs = inst[1][1]
             rt = inst[1][2]
-            instruccion = Instruccion("",op, rd, rs, rt, 0, num)
+            instruccion = Instruccion("",op, rd, rs, rt, 0, num+1)
             lista.append(instruccion)
         else:
             rt = inst[1][0]
@@ -185,7 +179,7 @@ def cargaInstrucciones(instrucciones):
             inm = int(rs1[0])
             rs2 = rs1[1].split(")")
             rs = rs2[0]
-            instruccion = Instruccion("",op, "", rs, rt, inm, num)
+            instruccion = Instruccion("",op, "", rs, rt, inm, num+1)
             lista.append(instruccion)
         num+=1
     return lista, num
@@ -204,20 +198,20 @@ def etapa_if(instruccion: Instruccion):
     rsIfId.op = op
     rsIfId.rs = rs
     rsIfId.rt = rt
+    if(op != "NOP"):
+        print("Etapa IF de I{}: Contenido del registro RS_IF_ID:".format(instruccion.num))
+        print("\t>> Instruccion: {}".format(instruccion.toString()))
+        if op == "NOP":
+            rsIfId.tipo = "NOP"
+        elif op == "add" or op == "sub":
+            rsIfId.tipo = "ALU"
+            rsIfId.rd = rd
+        elif op == "lw" or op == "sw":
+            rsIfId.tipo = "MEM"
+            rsIfId.inm = inm
 
-    print("Etapa IF de I{}: Contenido del registro RS_IF_ID:".format(instruccion.num))
-    print("\t>> Instruccion: {}".format(instruccion.toString()))
-    if op == "NOP":
-        rsIfId.tipo = "NOP"
-    elif op == "add" or op == "sub":
-        rsIfId.tipo = "ALU"
-        rsIfId.rd = rd
-    elif op == "lw" or op == "sw":
-        rsIfId.tipo = "MEM"
-        rsIfId.inm = inm
-
-    print("\t>> Tipo de instruccion: {}".format(rsIfId.tipo))
-    print("\t>> rd: {} - rs: {} - rt: {} - inm: {}".format(rd, rs, rt, inm))
+        print("\t>> Tipo de instruccion: {}".format(rsIfId.tipo))
+        print("\t>> rd: {} - rs: {} - rt: {} - inm: {}".format(rd, rs, rt, inm))
 
 def etapa_id():
     if rsIfId.tipo != "NOP":
@@ -328,6 +322,8 @@ if __name__ == '__main__':
     lista_inst, nciclos = procesaInstrucciones(instrucciones)
     MEM_I, numInst = cargaInstrucciones(lista_inst)
 
+
+
     # Contador
     PC = 0 # Para acceder a la memoria de instrucciones
     continua = True
@@ -342,11 +338,11 @@ if __name__ == '__main__':
 
     print(" ")
     print("Numero total de instrucciones: {}".format(numInst))
+    print("Numero total de ciclos: {}".format(nciclos))
     print(" ")
     print("----------------COMIENZO SIMULACIÓN---------------")
 
-    while contCiclos <= nciclos:  # Continua mientras hayan datos en los registros de segmentacion
-
+    while contCiclos <= nciclos:
         # COMPROBAMOS SI HAY ALGUN RIESGO
 
         # ALU ALU
@@ -381,7 +377,8 @@ if __name__ == '__main__':
             etapa_id()
         if PC < numInst:
             etapa_if(MEM_I[PC])
-            PC += 1
+
+        PC += 1
 
         contCiclos += 1
 
