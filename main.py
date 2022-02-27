@@ -2,7 +2,7 @@ import sys
 from typing import *
 
 # Definicion de vectores
-MEM_D = []  # Memoria de datos
+MEM_D = [i for i in range(31)]  # Memoria de datos (de 0 a 31)
 REG = dict()    # Banco de registros
 MEM_I = []  # Memorida de isntrucciones
 
@@ -58,6 +58,16 @@ class RS_ID_EX:
         self.value1 = value1
         self.value2 = value2
 
+    def empty(self):
+        self.instruc = Instruccion("", "", "", "", "", 0, 0)
+        self.tipo = ""
+        self.op = ""
+        self.rs = ""
+        self.rt = ""
+        self.rd = ""
+        self.inm = 0
+        self.value1 = 0
+        self.value2 = 0
 
 class RS_EX_MEM:
     def __init__(self, instruc, tipo, res, rt, rd, value2):
@@ -68,6 +78,14 @@ class RS_EX_MEM:
         self.rd = rd
         self.value2 = value2
 
+    def empty(self):
+        self.instruc = Instruccion("", "", "", "", "", 0, 0)
+        self.tipo = ""
+        self.res = ""
+        self.rt = ""
+        self.rd = ""
+        self.value2 = 0
+
 
 class RS_MEM_WB:
     def __init__(self, instruc, tipo, res, rt, rd):
@@ -76,6 +94,13 @@ class RS_MEM_WB:
         self.res = res
         self.rt = rt
         self.rd = rd
+
+    def empty(self):
+        self.instruc = Instruccion("", "", "", "", "", 0, 0)
+        self.tipo = ""
+        self.res = ""
+        self.rt = ""
+        self.rd = ""
 
 # Inicializacion de los registros de segmentación
 inst = Instruccion("", "", "", "", "", 0, 0)
@@ -135,7 +160,7 @@ def procesaInstrucciones(instrucciones):
         print("No hay instrucciones")
 
 def cargaInstrucciones(instrucciones):
-    num = 1
+    num = 0
     lista = []
     for inst in instrucciones:
         op = inst[0]
@@ -150,7 +175,7 @@ def cargaInstrucciones(instrucciones):
         else:
             rt = inst[1][0]
             rs1 = inst[1][1].split("(")
-            inm = rs1[0]
+            inm = int(rs1[0])
             rs2 = rs1[1].split(")")
             rs = rs2[0]
             instruccion = Instruccion("",op, "", rs, rt, inm, num)
@@ -188,43 +213,104 @@ def etapa_if(instruccion: Instruccion):
     print("\t>> rd: {} - rs: {} - rt: {} - inm: {}".format(rd, rs, rt, inm))
 
 def etapa_id():
-    print("Etapa ID/OF de I{}: Contenido del registro RS_ID_EX:".format(rsIfId.instruc.num))
-    print("\t>> Instruccion: {}".format(rsIfId.instruc.toString()))
-    # Cargamos los componentes del registro de segmentacion
-    # Buscamos los valores de rs y rt en REG
-    rsIdEx.value1 = REG[rsIfId.rs]
-    rsIdEx.value2 = REG[rsIfId.rt]
-    rsIdEx.rs = rsIfId.rs
-    rsIdEx.rt = rsIfId.rt
+    if rsIfId.tipo != "NOP":
+        print("Etapa ID/OF de I{}: Contenido del registro RS_ID_EX:".format(rsIfId.instruc.num))
+        print("\t>> Instruccion: {}".format(rsIfId.instruc.toString()))
+        # Cargamos los componentes del registro de segmentacion
+        # Buscamos los valores de rs y rt en REG
+        rsIdEx.value1 = REG[rsIfId.rs]
+        rsIdEx.value2 = REG[rsIfId.rt]
+        rsIdEx.rs = rsIfId.rs
+        rsIdEx.rt = rsIfId.rt
 
-    if rsIfId.tipo == "ALU":
-        rsIdEx.rd = rsIfId.rd
-        rsIdEx.tipo = rsIfId.tipo
-    if rsIfId.tipo == "MEM":
-        rsIdEx.inm = rsIfId.inm
-        if rsIfId.op == "lw":
-            rsIdEx.tipo = "LOAD"
-        else:
-            rsIdEx.tipo = "STORE"
+        if rsIfId.tipo == "ALU":
+            rsIdEx.rd = rsIfId.rd
+            rsIdEx.tipo = rsIfId.tipo
+        if rsIfId.tipo == "MEM":
+            rsIdEx.inm = rsIfId.inm
+            if rsIfId.op == "lw":
+                rsIdEx.tipo = "LOAD"
+            else:
+                rsIdEx.tipo = "STORE"
 
-    rsIdEx.op = rsIfId.op
-    print("\t>> Tipo de instruccion: {}".format(rsIdEx.tipo))
-    print("\t>> rs: {} - Valor rs: {}".format(rsIdEx.rs, rsIdEx.value1))
-    print("\t>> rt: {} - Valor rt: {}".format(rsIdEx.rt, rsIdEx.value2))
-    print("\t>> rd: {} - inm: {}".format(rsIdEx.rd, rsIdEx.inm))
+        rsIdEx.op = rsIfId.op
+        print("\t>> Tipo de instruccion: {}".format(rsIdEx.tipo))
+        print("\t>> rs: {} - Valor rs: {}".format(rsIdEx.rs, rsIdEx.value1))
+        print("\t>> rt: {} - Valor rt: {}".format(rsIdEx.rt, rsIdEx.value2))
+        print("\t>> rd: {} - inm: {}".format(rsIdEx.rd, rsIdEx.inm))
+        rsIdEx.instruc = rsIfId.instruc
 
-    # Vaciamos RS_IF_ID
-    rsIfId.empty()
+        # Vaciamos RS_IF_ID
+        rsIfId.empty()
+
+def etapa_ex():
+    if rsIdEx.tipo != "NOP":
+        instruc = rsIdEx.instruc
+        print("Etapa EX de I{}: Contenido del registro RS_EX_MEM:".format(instruc.num))
+        print("\t>> Instruccion: {}".format(instruc.toString()))
+        print("\t>> Tipo de instruccion: {}".format(rsIdEx.tipo))
+
+        rsExMem.instruc = rsIdEx.instruc
+        rsExMem.tipo = rsIdEx.tipo
+        rsExMem.rd = rsIdEx.rd
+        rsExMem.rt = rsIdEx.rt
+        rsExMem.value2 = rsIdEx.value2
+
+        if rsIdEx.tipo == "ALU":
+            if rsIdEx.op == "add":
+                resultado = rsIdEx.value1 + rsIdEx.value2
+                print("\t>> res: {} + {} = {}".format(rsIdEx.value1, rsIdEx.value2, resultado))
+            else:
+                resultado = rsIdEx.value1 - rsIdEx.value2
+                print("\t>> res: {} - {} = {}".format(rsIdEx.value1, rsIdEx.value2, resultado))
+            rsExMem.res = resultado
+        elif rsIdEx.tipo == "LOAD" or rsIdEx.tipo == "STORE":
+            resultado = rsIdEx.value1 + rsIdEx.inm
+            print("\t>> res: {} + {} = {}".format(rsIdEx.value1, rsIdEx.inm, resultado))
+            rsExMem.res = resultado
+
+        # Vaciamos RS_ID_EX
+        rsIdEx.empty()
 
 
-def etapa_ex(RS_ID_EX, RS_EX_MEM):
-    pass
+def etapa_mem():
+    if rsExMem.tipo != "NOP":
+        instruc = rsExMem.instruc
+        print("Etapa MEM de I{}: Contenido del registro RS_MEM_WB:".format(instruc.num))
+        print("\t>> Instruccion: {}".format(instruc.toString()))
+        print("\t>> Tipo de instruccion: {}".format(rsExMem.tipo))
 
-def etapa_mem(RS_EX_MEM, RS_MEM_WB, MEM_D):
-    pass
+        rsMemWb.instruc = rsExMem.instruc
+        rsMemWb.tipo = rsExMem.tipo
 
-def etapa_wb(RS_MEM_WB, REG):
-    pass
+        if rsExMem.tipo == "ALU":
+            rsMemWb.res = rsExMem.res
+            rsMemWb.rd = rsExMem.rd
+            print("\t>> res: {}".format(rsMemWb.res))
+            print("\t>> rd: {}".format(rsMemWb.rd))
+        elif rsIdEx.tipo == "LOAD":
+            rsMemWb.res = MEM_D[rsExMem.res]
+            rsMemWb.rt = rsExMem.rt
+            print("\t>> res: {}".format(rsMemWb.res))
+            print("\t>> rt: {}".format(rsMemWb.rt))
+        elif rsIdEx.tipo == "STORE":
+            MEM_D[rsExMem.res] = REG[rsExMem.rt]
+            print("\t>> Dato {} del registro {} almacenado en la direccion {} de memoria".format(REG[rsExMem.rt], rsExMem.rt, rsExMem.res))
+
+        # Vaciamos RS_EX_MEM
+        rsExMem.empty()
+
+def etapa_wb():
+    instruc = rsMemWb.instruc
+    print("Etapa WB de I{}:".format(instruc.num))
+
+    if rsMemWb.tipo == "ALU":
+        REG[rsMemWb.rd] = rsMemWb.res
+    elif rsMemWb.tipo == "LOAD":
+        REG[rsMemWb.rt] = rsMemWb.res
+
+    # Vaciamos RS_MEM_WB
+    rsMemWb.empty()
 
 if __name__ == '__main__':
 
@@ -243,9 +329,10 @@ if __name__ == '__main__':
     for elem in instrucciones:
         print("{}".format(elem))
     print("Numero total de ciclos: {}".format(nciclos))
+    print("Numero total de instrucciones: {}".format(numInst))
     print(" ")
 
-    while contCiclos != nciclos:  # Continua mientras hayan datos en los registros de segmentacion
+    while contCiclos < nciclos:  # Continua mientras hayan datos en los registros de segmentacion
 
         # COMPROBAMOS SI HAY ALGUN RIESGO
 
@@ -266,19 +353,20 @@ if __name__ == '__main__':
             rsExMem.value2 = rsMemWb.res
 
         # SEGMENTACION
-        print("Ciclo: {}".format(contCiclos))
+        print(" ")
+        print("---------------------Ciclo: {}---------------------".format(contCiclos))
 
         # En caso de que un registro de segmentacion este vacio
         # es porque ninguna instruccion ha llegado aun a esa etapa
         if rsMemWb.tipo != "":
             pass
         if rsExMem.tipo != "":
-            pass
+            etapa_mem()
         if rsIdEx.tipo != "":
-            pass
+            etapa_ex()
         if rsIfId.tipo != "":
             etapa_id()
-        if PC != numInst:
+        if PC < numInst:
             etapa_if(MEM_I[PC])
             PC += 1
 
