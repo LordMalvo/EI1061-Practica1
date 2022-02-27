@@ -1,14 +1,9 @@
-import sys
-from typing import *
-
-# Definicion de vectores
+# MEMORIA DE DATOS
 MEM_D = [i for i in range(31)]  # Memoria de datos (de 0 a 31)
-REG = dict()    # Banco de registros
-MEM_I = []  # Memorida de isntrucciones
 
-# INSTRUCCION
+
+# CLASE INSTRUCCION
 class Instruccion:
-
     def __init__(self, tipo, op, rd, rs, rt, inm, num):
         self.tipo = tipo
         self.op = op
@@ -24,6 +19,7 @@ class Instruccion:
         if self.op == "sw" or self.op == "lw":
             return "{} {},{}({})".format(self.op, self.rt, self.inm, self.rs)
         return "{} {},{},{}".format(self.op, self.rd, self.rs, self.rt)
+
 
 # REGISTROS DE SEGMENTACION
 class RS_IF_ID:
@@ -69,6 +65,7 @@ class RS_ID_EX:
         self.value1 = 0
         self.value2 = 0
 
+
 class RS_EX_MEM:
     def __init__(self, instruc, tipo, res, rt, rd, value2):
         self.instruc = instruc
@@ -102,17 +99,20 @@ class RS_MEM_WB:
         self.rt = ""
         self.rd = ""
 
-# Inicializacion de los registros de segmentación
+
+# INICIALIZACION REGISTROS DE SEGMENTACION
 inst = Instruccion("", "", "", "", "", 0, 0)
 rsIfId = RS_IF_ID(inst, "", "", "", "", "", 0)
 rsIdEx = RS_ID_EX(inst, "", "", "", "", "", "", 0, 0)
 rsExMem = RS_EX_MEM(inst, "", "", "", "", 0)
 rsMemWb = RS_MEM_WB(inst, "", "", "", "")
 
-# Inicializamos registros
+
+# INICIALIZACION REGISTROS
 REG = {'r0': 0, 'r1': 1, 'r2': 2, 'r3': 3, 'r4': 4, 'r5': 5, 'r6': 6,
        'r7': 7, 'r8': 8, 'r9': 9, 'r10': 10, 'r11': 11, 'r12': 12,
        'r13': 13, 'r14': 14, 'r15': 15}
+
 
 # Esta funcion devuelve una lista de instrucciones tal que
 # [[instruccion1, [registros]], [instruccion2, [registros]], ...]
@@ -128,6 +128,7 @@ def read_data():
             instrucciones[i][1] = instrucciones[i][1].split(',')
     return instrucciones
 
+# Deteccion de riesgo LOAD-ALU e inserción de NOP
 def procesaInstrucciones(instrucciones):
     if len(instrucciones) >= 1:
         nciclos = 5
@@ -135,18 +136,19 @@ def procesaInstrucciones(instrucciones):
         # Sabes el numero de NOPS
         if len(instrucciones) > 1:
             i = 0
-            while i < len(instrucciones)-1:
-                if instrucciones[i] != "NOP" or instrucciones[i+1] != "NOP":
+            while i < len(instrucciones) - 1:
+                if instrucciones[i] != "NOP" or instrucciones[i + 1] != "NOP":
                     dependencia = False
                     nciclos += 1
                     op1 = instrucciones[i][0]
                     regs1 = instrucciones[i][1]
 
-                    op2 = instrucciones[i+1][0]
-                    regs2 = instrucciones[i+1][1]
+                    op2 = instrucciones[i + 1][0]
+                    regs2 = instrucciones[i + 1][1]
 
                     if op1 == "lw":
-                        if (op2 == "add" or op2 == "sub") and (regs1[0] == regs2[1] or regs1[0] == regs2[2]):  # Riesgo de datos entre LOAD y ALU
+                        if (op2 == "add" or op2 == "sub") and (
+                                regs1[0] == regs2[1] or regs1[0] == regs2[2]):  # Riesgo de datos entre LOAD y ALU
                             dependencia = True
                     if dependencia:
                         instrucciones.insert(i + 1, "NOP")
@@ -160,18 +162,20 @@ def procesaInstrucciones(instrucciones):
     else:
         print("No hay instrucciones")
 
+
+# Creacion de objetos Instruccion
 def cargaInstrucciones(instrucciones):
     num = 0
     lista = []
     for inst in instrucciones:
         op = inst[0]
         if inst == "NOP":
-            lista.append(Instruccion("","NOP","","","",0,0))
+            lista.append(Instruccion("", "NOP", "", "", "", 0, 0))
         elif op == "add" or op == "sub":
             rd = inst[1][0]
             rs = inst[1][1]
             rt = inst[1][2]
-            instruccion = Instruccion("",op, rd, rs, rt, 0, num+1)
+            instruccion = Instruccion("", op, rd, rs, rt, 0, num + 1)
             lista.append(instruccion)
         else:
             rt = inst[1][0]
@@ -179,13 +183,13 @@ def cargaInstrucciones(instrucciones):
             inm = int(rs1[0])
             rs2 = rs1[1].split(")")
             rs = rs2[0]
-            instruccion = Instruccion("",op, "", rs, rt, inm, num+1)
+            instruccion = Instruccion("", op, "", rs, rt, inm, num + 1)
             lista.append(instruccion)
-        num+=1
+        num += 1
     return lista, num
 
 
-
+# UNA FUNCION PARA CADA EJECUCION DE ETAPA
 def etapa_if(instruccion: Instruccion):
     op = instruccion.op
     rd = instruccion.rd
@@ -198,7 +202,7 @@ def etapa_if(instruccion: Instruccion):
     rsIfId.op = op
     rsIfId.rs = rs
     rsIfId.rt = rt
-    if(op != "NOP"):
+    if (op != "NOP"):
         print("Etapa IF de I{}: Contenido del registro RS_IF_ID:".format(instruccion.num))
         print("\t>> Instruccion: {}".format(instruccion.toString()))
         if op == "NOP":
@@ -212,6 +216,7 @@ def etapa_if(instruccion: Instruccion):
 
         print("\t>> Tipo de instruccion: {}".format(rsIfId.tipo))
         print("\t>> rd: {} - rs: {} - rt: {} - inm: {}".format(rd, rs, rt, inm))
+
 
 def etapa_id():
     if rsIfId.tipo != "NOP":
@@ -243,6 +248,7 @@ def etapa_id():
 
         # Vaciamos RS_IF_ID
         rsIfId.empty()
+
 
 def etapa_ex():
     if rsIdEx.tipo != "NOP":
@@ -296,10 +302,13 @@ def etapa_mem():
             print("\t>> rt: {}".format(rsMemWb.rt))
         elif rsExMem.tipo == "STORE":
             MEM_D[rsExMem.res] = REG[rsExMem.rt]
-            print("\t>> Dato {} del registro {} almacenado en la direccion {} de memoria".format(REG[rsExMem.rt], rsExMem.rt, rsExMem.res))
+            print("\t>> Dato {} del registro {} almacenado en la direccion {} de memoria".format(REG[rsExMem.rt],
+                                                                                                 rsExMem.rt,
+                                                                                                 rsExMem.res))
 
         # Vaciamos RS_EX_MEM
         rsExMem.empty()
+
 
 def etapa_wb():
     instruc = rsMemWb.instruc
@@ -315,6 +324,8 @@ def etapa_wb():
     # Vaciamos RS_MEM_WB
     rsMemWb.empty()
 
+
+# PROGRAMA PRINCIPAL
 if __name__ == '__main__':
 
     # Cargamos las intrucciones en memoria
@@ -322,19 +333,16 @@ if __name__ == '__main__':
     lista_inst, nciclos = procesaInstrucciones(instrucciones)
     MEM_I, numInst = cargaInstrucciones(lista_inst)
 
-
-
     # Contador
-    PC = 0 # Para acceder a la memoria de instrucciones
-    continua = True
-    contCiclos = 1 # Para contar el numero de ciclos
+    PC = 0  # Para acceder a la memoria de instrucciones
+    contCiclos = 1  # Para saber cuando parar
 
     # Comienza la simulacion
     print("Sea un programa formado por las siguientes instrucciones")
     i = 1
     for instruc in MEM_I:
         print("I{}: {}".format(i, instruc.toString()))
-        i+=1
+        i += 1
 
     print(" ")
     print("Numero total de instrucciones: {}".format(numInst))
@@ -392,4 +400,4 @@ if __name__ == '__main__':
     i = 0
     for registro in REG.values():
         print("REG[{}] = {}".format(i, registro))
-        i+=1
+        i += 1
