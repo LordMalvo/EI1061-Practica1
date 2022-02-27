@@ -121,8 +121,11 @@ def read_data():
     lines = f.readlines()
     instrucciones = []
     for i in range(len(lines)):
-        instrucciones.append(lines[i].split())
-        instrucciones[i][1] = instrucciones[i][1].split(',')
+        if str(lines[i]) == "NOP\n":
+            instrucciones.append(["NOP"])
+        else:
+            instrucciones.append(lines[i].split())
+            instrucciones[i][1] = instrucciones[i][1].split(',')
     return instrucciones
 
 def procesaInstrucciones(instrucciones):
@@ -133,28 +136,32 @@ def procesaInstrucciones(instrucciones):
         if len(instrucciones) > 1:
             i = 0
             while i < len(instrucciones)-1:
-                dependencia = False
-                nciclos += 1
-                op1 = instrucciones[i][0]
-                regs1 = instrucciones[i][1]
+                if instrucciones[i] != "NOP":
+                    dependencia = False
+                    nciclos += 1
+                    op1 = instrucciones[i][0]
+                    regs1 = instrucciones[i][1]
 
-                op2 = instrucciones[i+1][0]
-                regs2 = instrucciones[i+1][1]
+                    op2 = instrucciones[i+1][0]
+                    regs2 = instrucciones[i+1][1]
 
-                if op1 == "add" or op1 == "sub":
-                    if (op2 == "add" or op2 == "sub") and (regs1[0] == regs2[1] or regs1[0] == regs2[2]):  # Riesgo de datos entre ALU y ALU
-                        dependencia = True
-                    elif (op2 == "sw") and (regs1[0] == regs2[0]):  # Riesgo de datos entre ALU y STORE
-                        dependencia = True
-                elif op1 == "lw":
-                    if (op2 == "add" or op2 == "sub") and (regs1[0] == regs2[0]):  # Riesgo de datos entre LOAD y ALU
-                        dependencia = True
-                if dependencia:
-                    instrucciones.insert(i + 1, ["NOP"])
-                    instrucciones.insert(i + 1, ["NOP"])
-                    i += 2
-                    nciclos += 2
+                    if op1 == "add" or op1 == "sub":
+                        if (op2 == "add" or op2 == "sub") and (regs1[0] == regs2[1] or regs1[0] == regs2[2]):  # Riesgo de datos entre ALU y ALU
+                            dependencia = True
+                        elif (op2 == "sw") and (regs1[0] == regs2[0]):  # Riesgo de datos entre ALU y STORE
+                            dependencia = True
+                    elif op1 == "lw":
+                        if (op2 == "add" or op2 == "sub") and (regs1[0] == regs2[0]):  # Riesgo de datos entre LOAD y ALU
+                            dependencia = True
+                    if dependencia:
+                        instrucciones.insert(i + 1, ["NOP"])
+                        instrucciones.insert(i + 1, ["NOP"])
+                        i += 2
+                        nciclos += 2
+                else:
+                    nciclos += 1
                 i += 1
+
         return instrucciones, nciclos
     else:
         print("No hay instrucciones")
@@ -288,12 +295,12 @@ def etapa_mem():
             rsMemWb.rd = rsExMem.rd
             print("\t>> res: {}".format(rsMemWb.res))
             print("\t>> rd: {}".format(rsMemWb.rd))
-        elif rsIdEx.tipo == "LOAD":
+        elif rsExMem.tipo == "LOAD":
             rsMemWb.res = MEM_D[rsExMem.res]
             rsMemWb.rt = rsExMem.rt
             print("\t>> res: {}".format(rsMemWb.res))
             print("\t>> rt: {}".format(rsMemWb.rt))
-        elif rsIdEx.tipo == "STORE":
+        elif rsExMem.tipo == "STORE":
             MEM_D[rsExMem.res] = REG[rsExMem.rt]
             print("\t>> Dato {} del registro {} almacenado en la direccion {} de memoria".format(REG[rsExMem.rt], rsExMem.rt, rsExMem.res))
 
@@ -303,6 +310,8 @@ def etapa_mem():
 def etapa_wb():
     instruc = rsMemWb.instruc
     print("Etapa WB de I{}:".format(instruc.num))
+    print("\t>> Instruccion: {}".format(instruc.toString()))
+    print("\t>> Tipo de instruccion: {}".format(rsMemWb.tipo))
 
     if rsMemWb.tipo == "ALU":
         REG[rsMemWb.rd] = rsMemWb.res
@@ -325,14 +334,18 @@ if __name__ == '__main__':
     contCiclos = 1 # Para contar el numero de ciclos
 
     # Comienza la simulacion
-    print("Listado de instrucciones final:")
-    for elem in instrucciones:
-        print("{}".format(elem))
-    print("Numero total de ciclos: {}".format(nciclos))
+    print("Sea un programa formado por las siguientes instrucciones")
+    i = 1
+    for instruc in MEM_I:
+        print("I{}: {}".format(i, instruc.toString()))
+        i+=1
+
+    print(" ")
     print("Numero total de instrucciones: {}".format(numInst))
     print(" ")
+    print("----------------COMIENZO SIMULACIÓN---------------")
 
-    while contCiclos < nciclos:  # Continua mientras hayan datos en los registros de segmentacion
+    while contCiclos <= nciclos:  # Continua mientras hayan datos en los registros de segmentacion
 
         # COMPROBAMOS SI HAY ALGUN RIESGO
 
@@ -359,7 +372,7 @@ if __name__ == '__main__':
         # En caso de que un registro de segmentacion este vacio
         # es porque ninguna instruccion ha llegado aun a esa etapa
         if rsMemWb.tipo != "":
-            pass
+            etapa_wb()
         if rsExMem.tipo != "":
             etapa_mem()
         if rsIdEx.tipo != "":
@@ -371,3 +384,15 @@ if __name__ == '__main__':
             PC += 1
 
         contCiclos += 1
+
+    print(" ")
+    print("---------------------Resultados---------------------")
+    print("Contenido de la Memoria de datos (MEM_D):")
+    for i in range(len(MEM_D)):
+        print("MEM_D[{}] = {}".format(i, MEM_D[i]))
+
+    print("Contenido del Banco de registros (REG):")
+    i = 0
+    for registro in REG.values():
+        print("REG[{}] = {}".format(i, registro))
+        i+=1
