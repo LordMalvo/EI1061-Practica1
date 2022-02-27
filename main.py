@@ -369,6 +369,12 @@ if __name__ == '__main__':
         if (rsExMem.rt == rsMemWb.rd) and (rsExMem.tipo == "STORE") and (rsMemWb.tipo == "ALU"):
             rsExMem.value2 = rsMemWb.res
 
+        #ALU + INST + ALU
+        if (rsIdEx.rs == rsMemWb.rd) and (rsMemWb.tipo == "ALU") and (rsIdEx.tipo == "ALU"):
+            rsIdEx.value1 = rsMemWb.res
+        if (rsIdEx.rt == rsMemWb.rd) and (rsMemWb.tipo == "ALU") and (rsIdEx.tipo == "ALU"):
+            rsIdEx.value2 = rsMemWb.res
+
         # SEGMENTACION
         print(" ")
         print("---------------------Ciclo: {}---------------------".format(contCiclos))
