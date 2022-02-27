@@ -402,6 +402,7 @@ if __name__ == '__main__':
     for i in range(len(MEM_D)):
         print("MEM_D[{}] = {}".format(i, MEM_D[i]))
 
+    print(" ")
     print("Contenido del Banco de registros (REG):")
     i = 0
     for registro in REG.values():
