@@ -37,7 +37,7 @@ class RS_IF_ID:
         self.inm = inm
 
     def empty(self):
-        self.instruc = ""
+        self.instruc = Instruccion("", "", "", "", "", 0, 0)
         self.tipo = ""
         self.op = ""
         self.rs = ""
@@ -60,7 +60,7 @@ class RS_ID_EX:
 
 
 class RS_EX_MEM:
-    def __init__(self, isntruc, tipo, res, rt, rd, value2):
+    def __init__(self, instruc, tipo, res, rt, rd, value2):
         self.instruc = instruc
         self.tipo = tipo
         self.res = res
@@ -70,7 +70,7 @@ class RS_EX_MEM:
 
 
 class RS_MEM_WB:
-    def __init__(self, isntruc, tipo, res, rt, rd):
+    def __init__(self, instruc, tipo, res, rt, rd):
         self.instruc = instruc
         self.tipo = tipo
         self.res = res
@@ -78,10 +78,11 @@ class RS_MEM_WB:
         self.rd = rd
 
 # Inicializacion de los registros de segmentación
-rsIfId = RS_IF_ID("", "", "", "", "", "", 0)
-rsIdEx = RS_ID_EX("", "", "", "", "", "", "", 0, 0)
-rsExMem = RS_EX_MEM("", "", "", "", "", 0)
-rsMemWb = RS_MEM_WB("", "", "", "", "")
+inst = Instruccion("", "", "", "", "", 0, 0)
+rsIfId = RS_IF_ID(inst, "", "", "", "", "", 0)
+rsIdEx = RS_ID_EX(inst, "", "", "", "", "", "", 0, 0)
+rsExMem = RS_EX_MEM(inst, "", "", "", "", 0)
+rsMemWb = RS_MEM_WB(inst, "", "", "", "")
 
 # Inicializamos registros
 REG = {'r0': 0, 'r1': 1, 'r2': 2, 'r3': 3, 'r4': 4, 'r5': 5, 'r6': 6,
@@ -90,7 +91,8 @@ REG = {'r0': 0, 'r1': 1, 'r2': 2, 'r3': 3, 'r4': 4, 'r5': 5, 'r6': 6,
 
 # Esta funcion devuelve una lista de instrucciones tal que
 # [[instruccion1, [registros]], [instruccion2, [registros]], ...]
-def read_data(f):
+def read_data():
+    f = open("instrucciones.txt")
     lines = f.readlines()
     instrucciones = []
     for i in range(len(lines)):
@@ -134,7 +136,7 @@ def procesaInstrucciones(instrucciones):
 
 def cargaInstrucciones(instrucciones):
     num = 1
-    lista = ()
+    lista = []
     for inst in instrucciones:
         op = inst[0]
         if op == "NOP":
@@ -166,6 +168,7 @@ def etapa_if(instruccion: Instruccion):
     inm = instruccion.inm
 
     # Pasamos los componentes al registro de segmentacion
+    rsIfId.instruc = instruccion
     rsIfId.op = op
     rsIfId.rs = rs
     rsIfId.rt = rt
@@ -184,9 +187,9 @@ def etapa_if(instruccion: Instruccion):
     print("\t>> Tipo de instruccion: {}".format(rsIfId.tipo))
     print("\t>> rd: {} - rs: {} - rt: {} - inm: {}".format(rd, rs, rt, inm))
 
-def etapa_id(instruccion: Instruccion):
-    print("Etapa ID/OF de I{}: Contenido del registro RS_ID_EX:".format(instruccion.num))
-    print("\t>> Instruccion: {}".format(instruccion.toString()))
+def etapa_id():
+    print("Etapa ID/OF de I{}: Contenido del registro RS_ID_EX:".format(rsIfId.instruc.num))
+    print("\t>> Instruccion: {}".format(rsIfId.instruc.toString()))
     # Cargamos los componentes del registro de segmentacion
     # Buscamos los valores de rs y rt en REG
     rsIdEx.value1 = REG[rsIfId.rs]
@@ -226,14 +229,14 @@ def etapa_wb(RS_MEM_WB, REG):
 if __name__ == '__main__':
 
     # Cargamos las intrucciones en memoria
-    instrucciones, nciclos = read_data(sys.stdin)
-    lista_inst = procesaInstrucciones(instrucciones)
+    instrucciones = read_data()
+    lista_inst, nciclos = procesaInstrucciones(instrucciones)
     MEM_I, numInst = cargaInstrucciones(lista_inst)
 
     # Contador
     PC = 0 # Para acceder a la memoria de instrucciones
     continua = True
-    ciclos = 1 # Para contar el numero de ciclos
+    contCiclos = 1 # Para contar el numero de ciclos
 
     # Comienza la simulacion
     print("Listado de instrucciones final:")
@@ -242,36 +245,41 @@ if __name__ == '__main__':
     print("Numero total de ciclos: {}".format(nciclos))
     print(" ")
 
-    while continua:  # Continua mientras hayan datos en los registros de segmentacion
+    while contCiclos != nciclos:  # Continua mientras hayan datos en los registros de segmentacion
 
         # COMPROBAMOS SI HAY ALGUN RIESGO
 
         # ALU ALU
-        if (RS_ID_EX.rs == RS_EX_MEM.rd) and (RS_EX_MEM.tipo == "ALU") and (RS_ID_EX.tipo == "ALU"):
-            RS_ID_EX.value1 = RS_EX_MEM.res
-        if (RS_ID_EX.rt == RS_EX_MEM.rd) and (RS_EX_MEM.tipo == "ALU") and (RS_ID_EX.tipo == "ALU"):
-            RS_ID_EX.value2 = RS_EX_MEM.res
+        if (rsIdEx.rs == rsExMem.rd) and (rsExMem.tipo == "ALU") and (rsIdEx.tipo == "ALU"):
+            rsIdEx.value1 = rsExMem.res
+        if (rsIdEx.rt == rsExMem.rd) and (rsExMem.tipo == "ALU") and (rsIdEx.tipo == "ALU"):
+            rsIdEx.value2 = rsExMem.res
 
         # LOAD ALU
-        if (RS_ID_EX.rs == RS_MEM_WB.rt) and (RS_ID_EX.tipo == "ALU") and (RS_MEM_WB.tipo == "LOAD"):
-            RS_ID_EX.value1 = RS_MEM_WB.res
-        if (RS_ID_EX.rt == RS_MEM_WB.rt) and (RS_ID_EX.tipo == "ALU") and (RS_MEM_WB.tipo == "LOAD"):
-            RS_ID_EX.value2 = RS_MEM_WB.res
+        if (rsIdEx.rs == rsMemWb.rt) and (rsIdEx.tipo == "ALU") and (rsMemWb.tipo == "LOAD"):
+            rsIdEx.value1 = rsMemWb.res
+        if (rsIdEx.rt == rsMemWb.rt) and (rsIdEx.tipo == "ALU") and (rsMemWb.tipo == "LOAD"):
+            rsIdEx.value2 = rsMemWb.res
 
         # ALU STORE
-        if (RS_EX_MEM.rt == RS_MEM_WB.rd) and (RS_EX_MEM.tipo == "STORE") and (RS_MEM_WB.tipo == "ALU"):
-            RS_EX_MEM.value2 = RS_MEM_WB.res
+        if (rsExMem.rt == rsMemWb.rd) and (rsExMem.tipo == "STORE") and (rsMemWb.tipo == "ALU"):
+            rsExMem.value2 = rsMemWb.res
 
         # SEGMENTACION
-        print("Ciclo: {}".format(ciclos))
+        print("Ciclo: {}".format(contCiclos))
 
         # En caso de que un registro de segmentacion este vacio
         # es porque ninguna instruccion ha llegado aun a esa etapa
         if rsMemWb.tipo != "":
             pass
-        if rsExMem.tipo != "" :
+        if rsExMem.tipo != "":
             pass
         if rsIdEx.tipo != "":
-            etapa_id(rsIfId.instruc)
+            pass
+        if rsIfId.tipo != "":
+            etapa_id()
         if PC != numInst:
             etapa_if(MEM_I[PC])
+            PC += 1
+
+        contCiclos += 1

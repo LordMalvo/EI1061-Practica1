@@ -1,5 +1,4 @@
-lw rt,inm(rs)
-sw rt,inm(rs)
-add rd,rs,rt
-sub rd,rs,rt
-beqz rs,inm
+lw r1,2(r0)
+add r2,r1,r3
+add r3,r2,r5
+sw r3,0(r0)
