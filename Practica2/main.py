@@ -84,6 +84,19 @@ class UnidadFuncional:
         self.res_ok = res_ok
         self.ciclo_ok = ciclo_ok
 
+    def libera(self):
+        self.uso = 0
+        self.cont_ciclos = 0
+        self.rob = 0
+        self.opa = 0
+        self.opb = 0
+        self.op = 0
+        self.res = 0
+        self.res_ok = 0
+        self.ciclo_ok = 0
+
+
+
 def read_data():
     f = open("instrucciones.txt")
     lines = f.readlines()
@@ -140,7 +153,12 @@ def iniciarEstructuras(instrucciones):
 
 def iniciarER(instrucciones):
     ER = [[],[],[]] # [0] es para ALU, [1] para MEM, [2] para MULT
-    UF = [[]*TOTAL_UF]
+    UF = [0,0,0]
+    #self, uso, cont_ciclos, rob, opa, opb, op, res, res_ok, ciclo_ok
+    UF[0] = UnidadFuncional(0, 0, 0, 0, 0, 0, 0, 0, 0)
+    UF[1] = UnidadFuncional(0, 0, 0, 0, 0, 0, 0, 0, 0)
+    UF[2] = UnidadFuncional(0, 0, 0, 0, 0, 0, 0, 0, 0)
+
     #busy, op, opa, opa_ok, ciclo_ok_opa, opb, opb_ok, ciclo_ok_opb, inm, rob
     for ins in instrucciones:
         if ins[0] == "add" or ins[0] == "sub" :
@@ -152,32 +170,50 @@ def iniciarER(instrucciones):
         else:
             ER[2].append(LineaER(0, "", "", 0, 0, "", 0, 0, "", 0))
 
-    return ER
+    return ER, UF
 
 
-def etapa_COMMIT( ):
-    # Saber que linea hay que eliminar
-    linea_rob = ROB[linea]
+def etapa_COMMIT(parametros):
 
-
+    REG, DAT, INS, ROB, ER, UF, inst_prog, inst_rob, p_rob_cabeza, p_rob_cola, PC, ciclo = parametros
+    linea_rob = ROB[p_rob_cabeza]
     if linea_rob.busy == 1 and linea_rob.etapa == "WB" and linea_rob.valor_ok == 1 and linea_rob.ciclo_ok:
         id_reg = linea_rob.rd
-
         if (linea_rob.rob == id_reg.rob):
-              #actualizar contenido id_reg.contenido
+            REG[id_reg].contenido = linea_rob.valor
+            REG[id_reg].ok = 1
+            REG[id_reg].ciclo_ok = ciclo+1
 
+        linea_rob.etapa = 4
+        linea_rob.busy = 0
+        p_rob_cabeza = p_rob_cabeza+1
+        inst_rob = inst_rob -1
 
-def etapa_WD():
+    ciclo = ciclo + 1
+    return REG, DAT, INS, ROB, ER, UF, inst_prog, inst_rob, p_rob_cabeza, p_rob_cola, PC, ciclo
+
+def etapa_WD(parametros):
+
+    REG, DAT, INS, ROB, ER, UF, inst_prog, inst_rob, p_rob_cabeza, p_rob_cola, PC, ciclo = parametros
     i = 0
     cont = 0
 
     while(cont == 0 and i < TOTAL_UF):
-        if (UF[i].uso == 1) and (UF[i].res_ok == 1) and (UF[i].ciclo_ok < ciclo):
-            # Actualizar ROB con el resultado
+        uf_id = UF[i]
+
+        if (uf_id.uso == 1) and (uf_id.res_ok == 1) and (uf_id.ciclo_ok < ciclo):
             # linea a actualizar:
-            id = UF[i].TAG_ROB
+            id = uf_id.rob
+            # Actualizar ROB con el resultado
+            ROB[id].valor = uf_id.res
+            ROB[id].valor_ok = 1
+            ROB[id].ciclo_ok = ciclo +1
+            ROB[id].etapa = 3
+
+
             # Etapa a WB
             # Dejar libre Unidad FUncional: Poner todo a cero
+            uf_id.libera()
             # Como se ha escrito un dato ya no se deja escribir mas
             bucle = 1
 
@@ -186,13 +222,18 @@ def etapa_WD():
                 fin = p_er_cola[k]
                 for j in range(fin):
                     if(ER[k][j].busy == 1): # Linea ocupada
-                        if (ER[k][j].opa_ok == 0) and (ER[k][j].opa_ok == id):
-                            #Actualiza operando a (valor, ok y ciclo)
-                        if (ER[k][j].opb_ok == 0) and (ER[k][j].opb_ok == id):
-                            #Actualiza operando b
+                        if (ER[k][j].opa_ok == 0) and (ER[k][j].opa == id):
+                            ER[k][j].opa = ROB[id].valor
+                            ER[k][j].ok = 1
+                            ER[k][j].ciclo_ok_opa = ciclo +1
+
+                        if (ER[k][j].opb_ok == 0) and (ER[k][j].opb == id):
+                            ER[k][j].opb = ROB[id].valor
+                            ER[k][j].ok = 1
+                            ER[k][j].ciclo_ok_opb = ciclo + 1
         else:
             i = i + 1
-
+    ciclo = ciclo +1
 
 def etapa_EX(): #faltaría pasarle como argumento a la función el UF
     i = 0
@@ -278,24 +319,31 @@ def etapa_ID_ISS(): #deberíamos pasarle como argumento la variable inst_prog de
 
 
 if __name__ == '__main__':
-    int p_er_cola = [0,0,0]
+
     # Inicializamos estructuras (Registros, memoria de datos y memoria de isntrucciones)
     instrucciones = read_data()
     REG, DAT, INS, ROB = iniciarEstructuras(instrucciones)
-    ER = iniciarER(INS)
+    ER, UF = iniciarER(INS)
     PC = 0
     ciclo = 1
 
     inst_prog = len(instrucciones)
+    p_er_cola = [0, 0, 0]
     inst_rob = 0
+    p_rob_cabeza =0
+    p_rob_cola = 0
+
+
+    datos = [REG,DAT,INS,ROB,ER,UF,inst_prog,inst_rob,p_rob_cabeza,p_rob_cola,PC,ciclo]
 
     while (inst_rob > 0) or (inst_prog > 0):
+        printf("---------------------- CICLO " + str(ciclo) + "----------------------")
         etapa_ID_ISS()
         etapa_EX()
         etapa_WD()
-        etapa_COMMIT()
+        etapa_COMMIT(datos)
 
-        ciclos = ciclos+1
+
 
         mostrar_ER(ER)
         mostrar_ROB(ROB)
