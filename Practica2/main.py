@@ -295,8 +295,6 @@ def etapa_ID_ISS(parametros): #deberíamos pasarle como argumento la variable in
     linea_aux = LineaER() #argumentaos
     inst = Instruccion()
 
-
-
     if(inst_prog > 0):
         inst = INS[PC]
         linea_aux = 0
@@ -375,8 +373,13 @@ def etapa_ID_ISS(parametros): #deberíamos pasarle como argumento la variable in
 
         p_rob_cola = p_rob_cola+1
 
+        #Actualizamos el registro destino con el ROB correspondiente
+        REG[inst.rd].rob = ROB[linea].rob
+
         #Actualizamos el número de instrucciones que tendrá el programa
         inst_prog = inst_prog-1
+
+
 
 
 
