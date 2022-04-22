@@ -60,6 +60,10 @@ class LineaER:
         self.inm = inm
         self.rob = rob
 
+    def toString(self):
+        return "{} {},{},{},{},{},{},{},{},{}".format(self.busy, self.op, self.opa, self.opa_ok, self.ciclo_ok_opa, self.opb, self.opb_ok, self.ciclo_ok_opb, self.inm, self.rob)
+
+
 # LINEA ROB
 class LineaROB:
     def __init__(self, rob, busy, rd, valor, valor_ok, ciclo_ok, etapa):
@@ -70,6 +74,9 @@ class LineaROB:
         self.valor_ok = valor_ok
         self.ciclo_ok = ciclo_ok
         self.etapa = etapa
+
+    def toString(self):
+        return "{},{},{},{},{},{},{}".format(self.rob, self.busy, self.rd, self.valor, self.valor_ok, self.ciclo_ok, self.etapa)
 
 # UNIDAD FUNCIONAL
 class UnidadFuncional:
@@ -161,7 +168,7 @@ def iniciarER(instrucciones):
 
     #busy, op, opa, opa_ok, ciclo_ok_opa, opb, opb_ok, ciclo_ok_opb, inm, rob
     for ins in instrucciones:
-        if ins[0] == "add" or ins[0] == "sub" :
+        if ins[0] == "add" or ins[0] == "sub":
             ER[0].append(LineaER(0,"","",0,0,"",0,0,"",0))
 
         elif ins[0] == "mult":
@@ -175,7 +182,7 @@ def iniciarER(instrucciones):
 
 def etapa_COMMIT(parametros):
 
-    REG, DAT, INS, ROB, ER, UF, inst_prog, inst_rob, p_rob_cabeza, p_rob_cola, PC, ciclo = parametros
+    REG, DAT, INS, ROB, ER, UF, inst_prog, p_er_cola, inst_rob, p_rob_cabeza, p_rob_cola, PC, ciclo = parametros
     linea_rob = ROB[p_rob_cabeza]
     if linea_rob.busy == 1 and linea_rob.etapa == "WB" and linea_rob.valor_ok == 1 and linea_rob.ciclo_ok:
         id_reg = linea_rob.rd
@@ -194,7 +201,7 @@ def etapa_COMMIT(parametros):
 
 def etapa_WD(parametros):
 
-    REG, DAT, INS, ROB, ER, UF, inst_prog, inst_rob, p_rob_cabeza, p_rob_cola, PC, ciclo = parametros
+    REG, DAT, INS, ROB, ER, UF, inst_prog, p_er_cola, inst_rob, p_rob_cabeza,p_rob_cola, PC, ciclo = parametros
     i = 0
     cont = 0
 
@@ -235,7 +242,13 @@ def etapa_WD(parametros):
             i = i + 1
     ciclo = ciclo +1
 
-def etapa_EX(): #faltaría pasarle como argumento a la función el UF
+
+
+def etapa_EX(parametros): #faltaría pasarle como argumento a la función el UF
+
+    REG, DAT, INS, ROB, ER, UF, inst_prog, p_er_cola, inst_rob, p_rob_cabeza,p_rob_cola, PC, ciclo = parametros
+
+
     i = 0
     enviar = 0
 
@@ -254,7 +267,7 @@ def etapa_EX(): #faltaría pasarle como argumento a la función el UF
                 uf.cont_ciclos = uf.cont_ciclos+1
                 if (uf.cont_ciclos == max):
                     #Generar resultado, validarlo y almacenar ciclo donde se haya hecho la validación
-                    UF[i].res = #obtener opeacion
+                    #UF[i].res = #obtener opeacion
                     uf.res_ok = 1
                     UF[i].ciclo_ok = ciclo
 
@@ -272,50 +285,113 @@ def etapa_EX(): #faltaría pasarle como argumento a la función el UF
                     else:
                         j = j+1
         i = i+1
+    return REG, DAT, INS, ROB, ER, UF, inst_prog, p_er_cola, inst_rob, p_rob_cabeza,p_rob_cola, PC, ciclo
 
 
-def etapa_ID_ISS(): #deberíamos pasarle como argumento la variable inst_prog declarada en el main
+def etapa_ID_ISS(parametros): #deberíamos pasarle como argumento la variable inst_prog declarada en el main
+
+    REG, DAT, INS, ROB, ER, UF, inst_prog, p_er_cola, inst_rob, p_rob_cabeza, p_rob_cola, PC, ciclo = parametros
+
     linea_aux = LineaER() #argumentaos
     inst = Instruccion()
+
+
 
     if(inst_prog > 0):
         inst = INS[PC]
         linea_aux = 0
         linea_aux.busy = 0
-        linea_aux.op = cod #operacion a realizar
+        linea_aux.op = inst.cod #operacion a realizar
         #buscar operacions a realizar
         if (REG[inst.rs].ok == 1 and REG[inst.rs].ciclo_ok < ciclo):
             #cargar operando en opa y validarlo en ok_opa
+            linea_aux.opa = inst.rs
+            linea_aux.opa_ok = 1
+            linea_aux.ciclo_ok_opa = ciclo
+
         else:
             #linea ROB que proporicona el operando
             #cargar etiqueta ROB en opa y 0 en ok_opa
 
+            linea_aux.opa = ROB[inst.rs].rob
+            linea_aux.opa_ok = 0
+
+
+
         #buscar operando b
-            if (REG[inst.rs].ok == 1 and REG[inst.rs].ciclo_ok < ciclo):
-            # cargar operando en opb y validarlo en ok_opb
-            else:
+        if (REG[inst.rt].ok == 1 and REG[inst.rt].ciclo_ok < ciclo):
+        # cargar operando en opb y validarlo en ok_opb
+            linea_aux.opb = inst.rt
+            linea_aux.opb_ok = 1
+        else:
+            linea_aux.opb = ROB[inst.rt].rob
+            linea_aux.opb_ok = 0
+
+
+
         # linea ROB que proporicona el operando
         # cargar etiqueta ROB en opb y 0 en ok_opb
         linea_aux.inm = inst.inm
 
         #Insertar linea aux en ER correspondiente
+        tiponum = 0
+        tipo = ALU
         if (inst.cod == "add" or inst.cod == "sub"):
             tipo = ALU
+            tiponum = 0
         elif(inst.cod == "load" or inst.cod == "store"):
             tipo = MEM
+            tiponum=1
         elif(inst.cod == "mult"):
             tipo = MULT
+            tiponum=2
 
-        # linea = p_er_cola[tipo]
-        # insertar en ER[tipo][linea]
-        # actualizar p_er_cola[tipo]
+
+        #Actualizamos los campos de la ER corresondiente
+        linea = p_er_cola[tiponum]
+
+        ER[tiponum][linea].busy = 1
+        ER[tiponum][linea].op = tipo
+        ER[tiponum][linea].opa = linea_aux.opa
+        ER[tiponum][linea].opa_ok = linea_aux.opa_ok
+        ER[tiponum][linea].ciclo_ok_opa = linea_aux.ciclo_ok_opa
+        ER[tiponum][linea].opb = linea_aux.opb
+        ER[tiponum][linea].opb_ok = linea_aux.opb_ok
+        ER[tiponum][linea].ciclo_ok_opb = linea_aux.ciclo_ok_opb
+
+        p_er_cola[tiponum] = p_er_cola[tiponum]+1
+
+        #Actualizamos el ROB
+        linea = p_rob_cola
+        ROB[linea].busy =1
+        ROB[linea].rd = inst.rd
+        ROB[linea].valor = REG[inst.rd]
+        ROB[linea].valor_ok = 0
+        ROB[linea].ciclo_ok = ciclo
+        ROB[linea].etapa = "ISS" ### Se podría poner 2 en referencia a la segunda etapa
 
         if (inst.cod == "sw"):
-            linea_rob.destino = 0
-        else:
-            linea_rob.destino = inst.rd
+            ROB[linea].rd = 0
 
-        #actualizar p_rob_cola +1
+        p_rob_cola = p_rob_cola+1
+
+        #Actualizamos el número de instrucciones que tendrá el programa
+        inst_prog = inst_prog-1
+
+
+
+    return REG, DAT, INS, ROB, ER, UF, inst_prog, p_er_cola, inst_rob, p_rob_cabeza, p_rob_cola, PC, ciclo
+
+
+def mostrar_ER(ER):
+
+    for e in range( len(ER)):
+        print("Estacion de reserva de ALU\n")
+
+        for l in range (len(e)):
+            lineaER = ER[e][l]
+            print("{}{}{}{}{}{}{}{}{}", lineaER.busy, lineaER.op, lineaER.opa, lineaER.opa_ok, lineaER.ciclo_ok_opa, lineaER.opb, lineaER.ob,lineaER.opb_ok, lineaER.ciclo_ok_opb, lineaER.inm, lineaER.rob)
+
 
 
 if __name__ == '__main__':
@@ -334,20 +410,20 @@ if __name__ == '__main__':
     p_rob_cola = 0
 
 
-    datos = [REG,DAT,INS,ROB,ER,UF,inst_prog,inst_rob,p_rob_cabeza,p_rob_cola,PC,ciclo]
+    datos = [REG,DAT,INS,ROB,ER,UF,inst_prog,p_er_cola,inst_rob,p_rob_cabeza,p_rob_cola,PC,ciclo]
 
     while (inst_rob > 0) or (inst_prog > 0):
-        printf("---------------------- CICLO " + str(ciclo) + "----------------------")
-        etapa_ID_ISS()
-        etapa_EX()
-        etapa_WD()
-        etapa_COMMIT(datos)
+        print("---------------------- CICLO " + str(ciclo) + "----------------------")
+        etapa_ID_ISS(datos)
+        #etapa_EX(datos)
+        #etapa_WD(datos)
+        #etapa_COMMIT(datos)
 
 
 
         mostrar_ER(ER)
-        mostrar_ROB(ROB)
-        mostrar_REG(REG)
+        #mostrar_ROB(ROB)
+        #mostrar_REG(REG)
 
 
 
